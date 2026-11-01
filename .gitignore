@@ -1,0 +1,11 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.coverage
+.ruff_cache/
+# Never commit chats, exports or secrets
+data/
+*.txt
+!requirements*.txt
+kaggle.json
+.env

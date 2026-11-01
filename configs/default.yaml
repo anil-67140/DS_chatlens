@@ -1,0 +1,9 @@
+seed: 42
+max_upload_mb: 50
+session_gap_minutes: 60
+response_window_minutes: 360
+min_ngram_count: 3
+top_n: 20
+alpha: 0.05
+bootstrap_iterations: 2000
+extra_media_markers: []
