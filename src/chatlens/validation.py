@@ -68,7 +68,7 @@ def validate(df: pd.DataFrame, report: ParseReport | None = None,
         "day/month order or a merged file)", regress)
 
     user = df[~df["is_system"]]
-    senders = user["sender"].dropna()
+    senders = user["sender"].dropna().astype(str)
     blank = int((senders.str.strip() == "").sum())
     add("sender_names_non_blank", blank == 0, "error", f"{blank} blank sender names", blank)
     n_senders = senders.nunique()

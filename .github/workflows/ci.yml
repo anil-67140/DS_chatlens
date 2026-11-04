@@ -1,0 +1,31 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ matrix.python }}", cache: pip }
+      - run: pip install -e ".[app,tracking,dev]"
+      - run: ruff check src tests
+      - run: pytest --cov=chatlens --cov-report=term-missing --cov-fail-under=85 -p no:warnings
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t chatlens:ci .
+      - name: container starts and passes its health check
+        run: |
+          docker run -d --name cl -p 7860:7860 chatlens:ci
+          for i in $(seq 1 40); do curl -fs http://127.0.0.1:7860/healthz && exit 0; sleep 2; done
+          docker logs cl; exit 1

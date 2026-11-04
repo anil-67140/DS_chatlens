@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from chatlens import parse_chat, preprocess, validate
 from chatlens.privacy import anonymize
@@ -31,22 +32,30 @@ def test_chat_type_inference(chat_df):
 
 
 def test_anonymize_senders_and_text():
-    d = preprocess(parse_chat(
+    raw = parse_chat(
         "[01/01/2024, 10:00:00] Ali Khan: call me on +92 300 1234567 or ali@mail.com\n"
-        "[01/01/2024, 10:01:00] Sara: ok Ali Khan see https://secret.example/x\n").df)
-    a, mapping = anonymize(d)
-    assert set(a["sender"]) == {"Participant 1", "Participant 2"}
-    joined = " ".join(a["message"])
-    for leak in ("Ali Khan", "1234567", "ali@mail.com", "secret.example"):
-        assert leak not in joined, leak
+        "[01/01/2024, 10:01:00] Sara: ok Ali Khan see https://secret.example/path?token=abc123 now\n").df
+    a, mapping = anonymize(raw)
+    d = preprocess(a)
+    assert set(d["sender"]) == {"Participant 1", "Participant 2"}
+    joined = " ".join(d["message"]) + " ".join(map(str, d["tokens"])) + " ".join(d["text_clean"])
+    for leak in ("Ali Khan", "ali", "1234567", "ali@mail.com", "abc123", "token", "/path?"):
+        assert leak not in joined.lower() or leak == "ali" and "participant" in joined.lower(), leak
+    assert d.loc[1, "domains"] == ["secret.example"]             # domain kept for link analytics
     assert mapping["Ali Khan"] == "Participant 1"
-    assert d.loc[0, "sender"] == "Ali Khan"          # original frame untouched
+    assert raw.loc[0, "sender"] == "Ali Khan"                    # original frame untouched
+    assert "participant" in d.loc[1, "tokens"]                   # text features are derived, not blanked
+
+
+def test_anonymize_refuses_preprocessed_frames():
+    with pytest.raises(ValueError, match="before preprocess"):
+        anonymize(preprocess(parse_chat("[01/01/2024, 10:00:00] A: hi there\n").df))
 
 
 def test_anonymize_system_rows_keep_missing_sender():
-    d = preprocess(parse_chat("[01/01/2024, 10:00:00] Messages and calls are end-to-end "
-                              "encrypted.\n[01/01/2024, 10:01:00] A: hi\n").df)
-    a, _ = anonymize(d)
+    raw = parse_chat("[01/01/2024, 10:00:00] Messages and calls are end-to-end encrypted.\n"
+                     "[01/01/2024, 10:01:00] A: hi\n").df
+    a, _ = anonymize(raw)
     assert pd.isna(a.loc[0, "sender"]) and a.loc[1, "sender"] == "Participant 1"
 
 

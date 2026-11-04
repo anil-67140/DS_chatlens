@@ -70,12 +70,19 @@ def initiation(df: pd.DataFrame, config: AnalysisConfig | None = None) -> pd.Dat
     return c
 
 
+def _empty_response_frame() -> pd.DataFrame:
+    """Typed empty frame: an object-dtype empty mask would be misread by pandas as column names."""
+    return pd.DataFrame({"responder": pd.Series(dtype="object"), "previous_sender": pd.Series(dtype="object"),
+                         "minutes": pd.Series(dtype="float64"), "same_session": pd.Series(dtype="bool"),
+                         "within_window": pd.Series(dtype="bool")})
+
+
 def response_times(df: pd.DataFrame, config: AnalysisConfig | None = None) -> pd.DataFrame:
     """One row per turn change: responder, previous speaker, minutes. Within-window only."""
     cfg = config or AnalysisConfig()
     t = turns(df, cfg)
     if len(t) < 2:
-        return pd.DataFrame(columns=["responder", "previous_sender", "minutes", "within_window"])
+        return _empty_response_frame()
     prev_end = t["end"].shift()
     prev_sender = t["sender"].shift()
     same_session = t["session_id"] == t["session_id"].shift()
@@ -83,16 +90,16 @@ def response_times(df: pd.DataFrame, config: AnalysisConfig | None = None) -> pd
     out = pd.DataFrame({"responder": t["sender"], "previous_sender": prev_sender, "minutes": rt,
                         "same_session": same_session}).iloc[1:]
     out = out[out["responder"] != out["previous_sender"]]
-    out["within_window"] = out["minutes"] <= cfg.response_window_minutes
+    out["within_window"] = (out["minutes"] <= cfg.response_window_minutes).astype(bool)
     return out.reset_index(drop=True)
 
 
 def response_summary(df: pd.DataFrame, config: AnalysisConfig | None = None) -> dict:
     cfg = config or AnalysisConfig()
     rt = response_times(df, cfg)
-    valid = rt[rt["within_window"]]
+    valid = rt[rt["within_window"].astype(bool)]
     res: dict = {"turn_changes": int(len(rt)), "counted_responses": int(len(valid)),
-                 "excluded_beyond_window": int((~rt["within_window"]).sum()),
+                 "excluded_beyond_window": int((~rt["within_window"].astype(bool)).sum()),
                  "window_minutes": cfg.response_window_minutes, "by_responder": {}}
     if valid.empty:
         return res
@@ -115,7 +122,7 @@ def response_summary(df: pd.DataFrame, config: AnalysisConfig | None = None) -> 
 def response_distribution(df: pd.DataFrame, config: AnalysisConfig | None = None) -> pd.DataFrame:
     """Binned within-window response times for plotting."""
     rt = response_times(df, config)
-    v = rt[rt["within_window"]]["minutes"]
+    v = rt.loc[rt["within_window"].astype(bool), "minutes"]
     bins = [-0.001, 1, 5, 15, 60, 180, 360, np.inf]
     labels = ["<=1 min", "1-5 min", "5-15 min", "15-60 min", "1-3 h", "3-6 h", ">6 h"]
     return pd.cut(v, bins, labels=labels).value_counts().reindex(labels, fill_value=0) \
@@ -141,7 +148,7 @@ def no_observed_reply(df: pd.DataFrame, config: AnalysisConfig | None = None) ->
 def interaction_matrix(df: pd.DataFrame, config: AnalysisConfig | None = None) -> pd.DataFrame:
     """Counts of 'row responds after column' adjacency pairs within the response window."""
     rt = response_times(df, config)
-    rt = rt[rt["within_window"]]
+    rt = rt[rt["within_window"].astype(bool)]
     return pd.crosstab(rt["responder"], rt["previous_sender"])
 
 

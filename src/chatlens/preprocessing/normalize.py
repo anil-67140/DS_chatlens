@@ -30,3 +30,23 @@ def tokenize(text: str) -> list[str]:
     """Tokenise normalised text. Underscores and pure-digit tokens are dropped."""
     return [tok.strip("_") for tok in TOKEN_RE.findall(text)
             if tok.strip("_") and not tok.strip("_").isdigit()]
+
+
+_URL_TOKEN = " urltoken "
+_ELONG_RE = re.compile(r"(.)\1{2,}")
+
+
+def normalize_for_classification(text: str) -> str:
+    """Normalisation for supervised sentiment/emotion models.
+
+    Unlike :func:`normalize_text` (used for frequency analytics) this KEEPS emoji, as named
+    tokens, because they carry strong affect, maps URLs/mentions to placeholders, squeezes
+    character elongation ('soooo' -> 'soo'), strips Arabic diacritics and case-folds."""
+    t = unicodedata.normalize("NFC", text)
+    t = URL_RE.sub(_URL_TOKEN, t)
+    t = _MENTION_RE.sub(" usertoken ", t)
+    t = re.sub(r"@\w+", " usertoken ", t)
+    t = emoji.demojize(t, delimiters=(" emo_", " "), language="en")
+    t = _AR_DIACRITICS.sub("", t).translate(_AR_MAP)
+    t = _ELONG_RE.sub(r"\1\1", t.casefold())
+    return re.sub(r"\s+", " ", t).strip()

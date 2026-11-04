@@ -14,6 +14,7 @@ def get_logger(name: str = "chatlens") -> logging.Logger:
         h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
         logger.addHandler(h)
         logger.setLevel(logging.INFO)
+        logger.propagate = name == "chatlens" and False   # one handler per named logger: no duplicate lines
     return logger
 
 

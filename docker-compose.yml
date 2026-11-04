@@ -1,0 +1,20 @@
+services:
+  chatlens:
+    build: .
+    image: chatlens:latest
+    ports:
+      - "127.0.0.1:7860:7860"        # bound to localhost only; put a reverse proxy + auth in front to expose it
+    environment:
+      CHATLENS_MAX_UPLOAD_MB: "50"
+      CHATLENS_RETENTION_MINUTES: "30"
+    volumes:
+      - chatlens-data:/data           # feedback log only (ratings + short comments, never chat content)
+    read_only: true                   # container filesystem is immutable ...
+    tmpfs:
+      - /tmp:size=1g,mode=1777        # ... except RAM-backed scratch space, wiped when the container stops
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 3g
+    restart: unless-stopped
+volumes:
+  chatlens-data:

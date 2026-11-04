@@ -7,7 +7,7 @@ from .parsing.parser import ParseReport, ParseResult, parse_chat
 from .preprocessing.pipeline import preprocess
 from .validation import QualityReport, validate
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "AnalysisConfig", "ChatLensError", "IngestionError", "ParseError", "ParseReport",
     "ParseResult", "QualityReport", "parse_chat", "preprocess", "read_chat", "validate",

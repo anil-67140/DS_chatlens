@@ -1,0 +1,13 @@
+.git
+.github
+tests
+docs
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+data
+*.txt
+!requirements*.txt
+kaggle.json
+.env
